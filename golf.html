@@ -1,0 +1,198 @@
+<html>
+<head>
+  <title>Golf Game</title>
+  <script src="https://aframe.io/releases/1.0.3/aframe.min.js"></script>
+  <script src="//cdn.rawgit.com/donmccurdy/aframe-physics-system/v4.0.1/dist/aframe-physics-system.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/EricEisaman/aframe-trail-component@v1.0.0/aframe-trail-component.min.js"></script>
+
+
+  <script>
+    AFRAME.registerComponent('golf-controls', {
+      schema: {},
+      init: function () {
+        const ball = this.el;
+        const cameraRig = document.querySelector('#cameraRig');
+        const golfBall = document.querySelector('#golfBall');
+        const quat = new THREE.Quaternion();
+        const euler = new THREE.Euler();
+        const driver = new Audio('driver.mp3');
+        const wedge = new Audio('wedge.mp3');
+        var hit = 1;
+        driver.load();
+        wedge.load();
+
+        let direction = 0;
+        let angle = 10;
+        let power = 0;
+        let charging = false;
+        let chargeInterval = null;
+
+        // Arrow + spacebar controls
+        const powerMeter = document.querySelector('#powerMeter');
+        let powerDirection = 1;
+
+        const directionText = document.querySelector('#directionDisplay');
+        const angleText = document.querySelector('#angleDisplay');
+        const strokes = document.querySelector('#strokes');
+        let s = 0;
+
+        window.addEventListener('keydown', e => {
+        if (e.code === 'ArrowLeft') {
+            direction += 2;
+            directionText.setAttribute('value', `Direction: ${-1*direction}°`);
+        }
+        if (e.code === 'ArrowRight') {
+            direction -= 2;
+            directionText.setAttribute('value', `Direction: ${-1*direction}°`);
+        }
+        if (e.code === 'ArrowUp') {
+            angle = Math.min(angle + 1, 80);
+            angleText.setAttribute('value', `Angle: ${angle}°`);
+        }
+        if (e.code === 'ArrowDown') {
+            angle = Math.max(angle - 1, 5);
+            angleText.setAttribute('value', `Angle: ${angle}°`);
+        }
+
+          if (e.code === 'Space' && !charging) {
+            s += 1;
+            charging = true;
+            chargeInterval = setInterval(() => {
+              power += 0.02 * powerDirection;
+              if (power >= 1) {
+                power = 1;
+                powerDirection = -1;
+              }
+              if (power <= 0) {
+                power = 0;
+                powerDirection = 1;
+              }
+              powerMeter.setAttribute('scale', {
+                x: 0.01 + power * 2,
+                y: 0.2,
+                z: 0.1
+              });
+            }, 30);
+          }
+        });
+
+        window.addEventListener('keyup', e => {
+          if (e.code === 'Space' && charging) {
+            clearInterval(chargeInterval);
+            charging = false;
+            powerDirection = 1;
+
+            if(hit == 1){
+              driver.play();
+              hit += 1;
+            }
+            else{
+              wedge.play();
+            }
+
+            const dirRad = THREE.Math.degToRad(direction);
+            const angleRad = THREE.Math.degToRad(angle);
+            const velocity = new THREE.Vector3(
+              -Math.sin(dirRad) * Math.cos(angleRad),
+              Math.sin(angleRad),
+              -Math.cos(dirRad) * Math.cos(angleRad)
+            ).multiplyScalar(power * 40); // adjust for speed
+
+            ball.body.velocity.set(velocity.x, velocity.y, velocity.z);
+
+            power = 0;
+            powerMeter.setAttribute('scale', {x: 0.01, y: 0.2, z: 0.1});
+            strokes.setAttribute("value", `Stroke: ${s}`);
+          }
+        });
+      },
+
+      tick: function () {
+      const ball = this.el;
+      const cameraRig = document.querySelector('#cameraRig');
+      const yardsText = document.querySelector('#yards');
+
+
+      if (!cameraRig || !ball.body) return;
+
+      const ballPos = new THREE.Vector3();
+      ball.object3D.getWorldPosition(ballPos);
+
+      const camOffset = new THREE.Vector3(0, 2, 4);
+      const ballDir = new THREE.Vector3().copy(ball.body.velocity);
+
+      // Update camera
+      if (ballDir.lengthSq() > 0.01) {
+        ballDir.normalize();
+        camOffset.x = -ballDir.x * 4;
+        camOffset.z = -ballDir.z * 4;
+      }
+
+      const desiredCamPos = new THREE.Vector3().addVectors(ballPos, camOffset);
+      const currentCamPos = cameraRig.object3D.position;
+      currentCamPos.lerp(desiredCamPos, 0.08);
+
+      // === YARDAGE LOGIC ===
+      if (!this.startPosition) {
+        this.startPosition = ballPos.clone();
+        this.totalYards = 0;
+      }
+
+      const currentSpeed = ball.body.velocity.length();
+      
+      if (currentSpeed > 0.05) { // ball is moving
+        this.totalYards = this.startPosition.distanceTo(ballPos) * 1.09361; // meters to yards
+        yardsText.setAttribute("value", `Yards: ${this.totalYards.toFixed(1)}`);
+      } else {
+        this.startPosition = null; // reset for next hit
+      }
+    }
+
+
+    });
+  </script>
+</head>
+<body>
+  <a-scene physics="restitution: 0.3; friction: 0.7; gravity: -9">
+
+    
+    
+    <!-- This is the golf ball. Some of you used gltf models which is fine, just apply all these attributes to your gltf model.
+         The alternative is to use this sphere and add an src="" of a golf ball texture -->
+    <a-gltf-model id="golfBall" position="0 1 -5" scale="0.15 0.15 0.15" src="golf_ball_lp/scene.gltf" trail="length: 120; width: 0.15; color: white; resolution: 40" dynamic-body="mass: 1; shape: sphere; linearDamping: 0.4; angularDamping: 0.79" golf-controls></a-gltf-model>
+    <a-gltf-model src="golf_tee/scene.gltf" position="0.08 0.35 -5" scale="0.01 0.01 0.01"></a-gltf-model>
+    <a-box visible="false" static-body scale="0.25 0.5 0.25" color="red" position="0 0.25 -5"></a-box>
+
+    <a-entity id="cameraRig" position="0 1.5 -2">
+        <a-camera look-controls="enabled: false" position="0 0 3">
+          <a-sound src="sound.mp3" preload="true" autoplay="true" loop="true"></a-sound>
+            <a-box id="powerMeter" color="green" position="0 2 -3" scale="0.01 0.2 0.1"></a-box>
+
+            <a-plane color="black" opacity="0.7" scale="1 0.75 1" position="-1.2 0.325 -2.190"></a-plane>
+            <a-text id="directionDisplay" value="Direction: 0°" position="-1.5 0.5 -2" color="white" width="3"></a-text>
+            <a-text id="angleDisplay" value="Angle: 10°" position="-1.5 0.3 -2" color="white" width="3"></a-text>
+            <a-text id="strokes" value="Stroke: 0" position="-1.5 0.1 -2" color="white" width="3"></a-text>
+            
+            <a-plane color="black" opacity="0.7" scale="1 0.25 1" position="1.88 1.25 -2"></a-plane>
+            <a-text id="yards" value="Yards " position="1.5 1.25 -2" color="white" width="3"></a-text>
+          <!-- HUD elements -->
+        </a-camera>
+    </a-entity>
+
+
+
+    
+
+    <a-plane static-body color="#141a14" src="grass2.jpg" repeat="15 200" width="15" height="200" position="0 0 0" rotation="-90 0 0"></a-plane>
+
+
+    <a-plane static-body color="red" width="20" height="200" position="-7.5 10 0" rotation="0 90 90" visible="false"></a-plane>
+    <a-plane static-body color="red" width="20" height="200" position="7.5 10 0" rotation="0 -90 90" visible="false"></a-plane>
+
+    <a-gltf-model src="sagano_bamboo_forest/scene.gltf" position="-0.627 -2.5 0" scale="2 2 2"></a-gltf-model>
+    <a-sky color="skyblue"></a-sky>
+    <a-light type="hemisphere" intensity="6"></a-light>
+
+  </a-scene>
+</body>
+</html>

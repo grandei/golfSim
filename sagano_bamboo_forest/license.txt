@@ -1,0 +1,11 @@
+Model Information:
+* title:	Sagano Bamboo Forest
+* source:	https://sketchfab.com/3d-models/sagano-bamboo-forest-bb3928c27f73482cab8810f21e821a6c
+* author:	Asadawut.Kaewma (https://sketchfab.com/Asadawut.Kaewma)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Sagano Bamboo Forest" (https://sketchfab.com/3d-models/sagano-bamboo-forest-bb3928c27f73482cab8810f21e821a6c) by Asadawut.Kaewma (https://sketchfab.com/Asadawut.Kaewma) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
